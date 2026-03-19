@@ -1,0 +1,54 @@
+# crystal-3d-recon dependencies
+# Python 3.9+ required
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# NOTE: segment-anything requires a model checkpoint file (.pth) downloaded separately.
+#       See README.md for instructions.
+#
+# NOTE: harvesters and genicam are for GenICam-compatible cameras (e.g. Basler).
+#       These may require additional vendor SDK installation.
+
+# --- Core numerical / data ---
+numpy>=1.22.0
+pandas>=1.5.0
+scipy>=1.9.0
+
+# --- Computer vision ---
+opencv-python>=4.7.0
+
+# --- 3D processing and mesh ---
+open3d>=0.17.0
+trimesh>=3.20.0
+pymeshfix>=0.16.0
+pyvista>=0.40.0
+
+# --- Visualisation ---
+matplotlib>=3.6.0
+seaborn>=0.12.0
+
+# --- Meta Segment Anything Model (SAM) ---
+# Install from source: pip install git+https://github.com/facebookresearch/segment-anything.git
+# segment-anything
+
+# --- Progress bars ---
+tqdm>=4.64.0
+
+# --- Graph / network ---
+networkx>=3.0
+
+# --- 3D rendering (OpenGL) ---
+PyOpenGL>=3.1.6
+pygame>=2.1.0
+
+# --- Camera acquisition (GenICam / Harvesters) ---
+# harvesters>=1.4.0
+# genicam>=1.0.0
+
+# --- Zaber motor control ---
+zaber-motion>=7.0.0
+
+# --- Jupyter notebooks ---
+jupyter>=1.0.0
+ipykernel>=6.0.0

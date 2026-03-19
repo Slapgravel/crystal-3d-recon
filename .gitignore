@@ -1,0 +1,70 @@
+# ============================================================
+# crystal-3d-recon .gitignore
+# ============================================================
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+.env
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# --- Image datasets (too large for git; store locally or in Drive) ---
+# Place your image folders alongside the notebooks, e.g.:
+#   notebooks/real_crystal_ring_white_light/
+#   notebooks/real_crystal_iso_white_light/
+#   etc.
+real_crystal_*/
+small_white_crystal_*/
+white_crystal_*/
+cal_images/
+cal_images2/
+cal_images_color/
+cal_pattern/
+bunny_pics/
+segmented/
+
+# --- SAM model weights (large binary files, download separately) ---
+*.pth
+
+# --- Generated outputs ---
+*.asc
+*.ply
+*.obj
+*.pickle
+*.pkl
+output/
+outputs/
+results/
+
+# --- SolidWorks files ---
+*.SLDPRT
+*.SLDASM
+*.SLDDRW
+
+# --- Archives ---
+*.zip
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editor settings ---
+.vscode/
+.idea/
+
+# --- PyInstaller ---
+build/
+dist/
+*.spec.bak

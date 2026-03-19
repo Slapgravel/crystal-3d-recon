@@ -1,0 +1,26 @@
+Bad / skipped images:
+
+white_crystal_no_supports/crystal_0020.jpg
+white_crystal_no_supports/crystal_0025.jpg
+white_crystal_no_supports/crystal_0030.jpg
+white_crystal_no_supports/crystal_0035.jpg
+white_crystal_no_supports/crystal_0040.jpg
+white_crystal_no_supports/crystal_0120.jpg
+white_crystal_no_supports/crystal_0135.jpg
+white_crystal_no_supports/crystal_0140.jpg
+white_crystal_no_supports/crystal_0145.jpg
+white_crystal_no_supports/crystal_0150.jpg
+white_crystal_no_supports/crystal_0155.jpg
+white_crystal_no_supports/crystal_0180.jpg
+white_crystal_no_supports/crystal_0185.jpg
+white_crystal_no_supports/crystal_0190.jpg
+white_crystal_no_supports/crystal_0195.jpg
+white_crystal_no_supports/crystal_0220.jpg
+white_crystal_no_supports/crystal_0225.jpg
+white_crystal_no_supports/crystal_0230.jpg
+white_crystal_no_supports/crystal_0235.jpg
+white_crystal_no_supports/crystal_0295.jpg
+white_crystal_no_supports/crystal_0340.jpg
+white_crystal_no_supports/crystal_0345.jpg
+white_crystal_no_supports/crystal_0350.jpg
+white_crystal_no_supports/crystal_0355.jpg
