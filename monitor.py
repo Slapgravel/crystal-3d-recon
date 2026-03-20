@@ -102,6 +102,9 @@ def parse_args():
                         help="Skip mesh generation (point cloud only)")
     parser.add_argument("--no-scale", action="store_true",
                         help="Skip scale calibration")
+    parser.add_argument("--no-dashboard", action="store_true",
+                        help="Disable the Flask web dashboard entirely "
+                             "(use the desktop viewer instead)")
     parser.add_argument("--dashboard-port", type=int, default=5050,
                         help="Port for the live dashboard (default: 5050)")
     parser.add_argument("--phase1-mins", type=int, default=None,
@@ -477,11 +480,19 @@ def main():
     db = GrowthDatabase(args.name)
     tracker = FacetTracker()
 
-    # Start dashboard
-    from crystal_recon.dashboard import Dashboard
-    dashboard = Dashboard(db, args.name, port=args.dashboard_port)
-    dashboard.start(start_time=time.time())
-    logger.info(f"Dashboard: http://localhost:{args.dashboard_port}")
+    # Start dashboard (can be disabled with --no-dashboard)
+    dashboard = None
+    if not args.no_dashboard:
+        from crystal_recon.dashboard import Dashboard
+        dashboard = Dashboard(db, args.name, port=args.dashboard_port)
+        dashboard.start(start_time=time.time())
+        logger.info(f"Dashboard: http://localhost:{args.dashboard_port}")
+    else:
+        logger.info(
+            "Dashboard disabled (--no-dashboard). "
+            f"Open the desktop viewer with: "
+            f"python -m crystal_recon.viewer output/{args.name}.db"
+        )
 
     # Analyse-only mode
     if args.analyse_only:
@@ -504,12 +515,13 @@ def main():
         simulate=args.simulate,
     )
 
-    # Wire dashboard countdown to scheduler
-    _orig_wait = scheduler._wait
-    def _wait_with_dashboard(seconds):
-        dashboard.set_next_run_mins(int(seconds / 60))
-        _orig_wait(seconds)
-    scheduler._wait = _wait_with_dashboard
+    # Wire dashboard countdown to scheduler (only if dashboard is running)
+    if dashboard is not None:
+        _orig_wait = scheduler._wait
+        def _wait_with_dashboard(seconds):
+            dashboard.set_next_run_mins(int(seconds / 60))
+            _orig_wait(seconds)
+        scheduler._wait = _wait_with_dashboard
 
     try:
         scheduler.start()

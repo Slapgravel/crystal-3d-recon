@@ -122,6 +122,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 
 <p class="refresh-note">Page auto-refreshes every 30 seconds.</p>
 
+<script src="/static/chart.min.js"></script>
 <script>
 const chartData = {chart_data_json};
 
@@ -172,7 +173,6 @@ makeChart('distChart',
   'Distance from Centroid (mm)'
 );
 </script>
-<script src="/static/chart.min.js"></script>
 </body>
 </html>
 """
@@ -265,6 +265,20 @@ class Dashboard:
                 headers={"Content-Disposition":
                          f"attachment; filename={self.experiment_name}_growth.csv"}
             )
+
+        @app.route("/image/latest")
+        def image_latest():
+            """Serve the representative image from the most recent run."""
+            runs = self.db.get_runs()
+            if not runs:
+                from flask import abort
+                abort(404)
+            latest_img = runs[-1].get("representative_image")
+            if not latest_img or not Path(latest_img).exists():
+                from flask import abort
+                abort(404)
+            return send_file(str(Path(latest_img).resolve()),
+                             mimetype="image/jpeg")
 
         self._app = app
 
