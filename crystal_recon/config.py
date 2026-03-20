@@ -3,37 +3,71 @@ config.py — Central configuration for the crystal 3D reconstruction pipeline.
 
 Edit the values in this file to match your setup. All other modules read
 from here, so this is the only file you need to change between runs.
+
+NOTE ON UNITS:
+  - All pixel dimensions are at the SCALED resolution (after IMAGE_SCALE_FACTOR
+    is applied), not the raw camera resolution.
+  - Z_AXIS_STEP_SIZE is in scaled pixels. If you change IMAGE_SCALE_FACTOR,
+    reconsider Z_AXIS_STEP_SIZE accordingly.
 """
 
 import os
 
 # ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+
+# Root directory for image datasets (relative to the project root).
+# Image folders are expected to live inside this directory.
+DATA_DIR = "notebooks"
+
+# Directory where output files (.asc, .ply) are written.
+OUTPUT_DIR = "output"
+
+# ---------------------------------------------------------------------------
 # Image acquisition settings
 # ---------------------------------------------------------------------------
 
-# Full camera resolution in pixels [width, height]
+# Full camera resolution in pixels [width, height].
+# This is the native sensor resolution before any scaling is applied.
 CAMERA_RESOLUTION = [5328, 4608]
 
 # Scale factor applied to images before processing.
-# 1/8 = 12.5% of full resolution (fast, good for testing)
-# 1/4 = 25% of full resolution (slower, more detail)
-# 1/2 = 50% of full resolution (slow, high detail)
+# This affects both memory usage and reconstruction detail.
+#   1/8  = 12.5% of full resolution — fast, good for testing and initial runs
+#   1/4  = 25%  of full resolution — slower, noticeably more detail
+#   1/2  = 50%  of full resolution — slow, high detail (requires significant RAM)
+# NOTE: If you change this, also reconsider Z_AXIS_STEP_SIZE below.
 IMAGE_SCALE_FACTOR = 1 / 8
 
-# Degrees between each captured image (1 = 360 images per full rotation)
+# Degrees between each captured image.
+# 1 = one image per degree = 360 images per full rotation (recommended).
 CAPTURE_STEP_DEGREES = 1
+
+# Total rotation in degrees. Almost always 360.
+TOTAL_ROTATION_DEGREES = 360
 
 # ---------------------------------------------------------------------------
 # Reconstruction settings
 # ---------------------------------------------------------------------------
 
-# Resolution of the Z-axis in the 3D voxel block (in pixels before scaling).
-# Lower = finer detail but much slower. 5 is a good starting point.
+# Resolution of the Z-axis in the 3D voxel block (in scaled pixels).
+# Lower = finer detail but significantly slower and more memory.
+# Recommended starting values by scale factor:
+#   IMAGE_SCALE_FACTOR = 1/8  → Z_AXIS_STEP_SIZE = 5
+#   IMAGE_SCALE_FACTOR = 1/4  → Z_AXIS_STEP_SIZE = 3
+#   IMAGE_SCALE_FACTOR = 1/2  → Z_AXIS_STEP_SIZE = 2
 Z_AXIS_STEP_SIZE = 5
 
 # Degrees between reconstruction samples.
-# 5 = use every 5th image (fast); 1 = use all 360 images (slow, most accurate)
+# 5 = use every 5th image (fast, good for testing)
+# 1 = use all 360 images (slow, most accurate)
 RECONSTRUCTION_ANGLE_STEP = 5
+
+# Minimum contour area in pixels (at scaled resolution).
+# Contours smaller than this are treated as noise and ignored.
+# Increase if the segmentation is picking up reflections or background artefacts.
+MIN_CONTOUR_AREA = 500
 
 # ---------------------------------------------------------------------------
 # SAM (Segment Anything Model) settings
@@ -41,54 +75,70 @@ RECONSTRUCTION_ANGLE_STEP = 5
 
 # Path to the SAM model checkpoint file.
 # Place the .pth file in the notebooks/ folder or update this path.
-# Download from: https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
-SAM_CHECKPOINT = os.path.join("notebooks", "sam_vit_b_01ec64.pth")
+# Download ViT-B (recommended, 375 MB):
+#   wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
+# Download ViT-L (better accuracy, 1.2 GB):
+#   wget https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth
+SAM_CHECKPOINT = os.path.join(DATA_DIR, "sam_vit_b_01ec64.pth")
 
 # SAM model type — must match the checkpoint file.
-# Options: "vit_b" (fast), "vit_l" (better), "vit_h" (best)
+# Options: "vit_b" (fast, 375 MB), "vit_l" (better, 1.2 GB), "vit_h" (best, 2.4 GB)
 SAM_MODEL_TYPE = "vit_b"
 
-# SAM bounding box as fractions of image width/height [x1, x2, y1, y2].
+# SAM bounding box as fractions of image [x_left, x_right, y_top, y_bottom].
 # Defines the region SAM searches for the crystal.
-# Adjust if the crystal is not centred or is being clipped.
+# Tuning guide:
+#   - If the crystal is being clipped at the edges, widen x or y range.
+#   - If background is included in the mask, tighten the range.
+#   - If the crystal is off-centre, shift x_left/x_right accordingly.
 SAM_BBOX = [0.20, 0.80, 0.20, 0.85]
 
 # ---------------------------------------------------------------------------
 # Calibration settings
 # ---------------------------------------------------------------------------
 
-# Path to the camera calibration pickle file (generated by camera_capture.py).
-CALIBRATION_FILE = os.path.join("notebooks", "cal_images2",
+# Path to the camera calibration pickle file.
+# Generated by running: python capture.py --calibrate
+CALIBRATION_FILE = os.path.join(DATA_DIR, "cal_images2",
                                 "Camera_Calibration_0.125.pickle")
 
-# Manual scale correction factor. This was empirically derived by comparing
-# the reconstruction output to a 3D-printed reference model.
-# A value of 1.0 means no correction. Recalibrate if output dimensions are off.
+# Manual scale correction factor applied on top of the calibration.
+# This was empirically derived by comparing reconstruction output to a
+# 3D-printed reference model of known dimensions.
+#
+# WARNING: This value is specific to the original camera, lens, and working
+# distance used during calibration. If any of these change, this factor
+# MUST be re-derived by:
+#   1. Printing or measuring an object of known dimensions
+#   2. Reconstructing it
+#   3. Measuring the output and computing: correction = known_size / measured_size
+#
+# Set to 1.0 to disable the correction entirely.
 SCALE_CORRECTION = 0.88
-
-# ---------------------------------------------------------------------------
-# Output settings
-# ---------------------------------------------------------------------------
-
-# Directory where output files (.asc, .ply) are written.
-OUTPUT_DIR = "output"
 
 # ---------------------------------------------------------------------------
 # Hardware settings (only used by capture.py on the lab machine)
 # ---------------------------------------------------------------------------
 
-# Zaber stage velocity in degrees per second
-ZABER_VELOCITY = 5.0
+# GenICam CTI file path for the Allied Vision camera.
+# This is machine-specific and must point to your local Vimba SDK installation.
+# If None, capture.py will search common installation paths automatically,
+# or prompt you to select from discovered cameras at runtime.
+#
+# Common paths:
+#   Windows: "C:/Program Files/Allied Vision/Vimba X/api/bin/VimbaC.cti"
+#   Linux:   "/opt/VimbaX/api/lib/libVimbaC.so"
+CAMERA_CTI_PATH = None  # Set to None to auto-discover, or provide a path
 
-# GenICam CTI file path for the Allied Vision camera
-# Update this to match your machine's SDK installation path
-CAMERA_CTI_PATH = "C:/Program Files/Allied Vision/Vimba X/api/bin/VimbaC.cti"
-
-# Camera model identifier
-CAMERA_MODEL = "1800 U-2460m"
-
-# Camera exposure time in microseconds
+# Camera exposure time in microseconds.
 CAMERA_EXPOSURE_US = 5000.0
 
-# Camera gain in dB
+# Camera gain in dB.
 CAMERA_GAIN_DB = 48.0
+
+# Zaber stage serial port.
+# Set to None to auto-detect, or specify explicitly e.g. "COM3" or "/dev/ttyUSB0".
+ZABER_PORT = None
+
+# Zaber stage velocity in degrees per second.
+ZABER_VELOCITY = 5.0
