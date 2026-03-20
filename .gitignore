@@ -68,3 +68,7 @@ desktop.ini
 build/
 dist/
 *.spec.bak
+
+# Simulated test images and output
+notebooks/test_crystal/
+output/
