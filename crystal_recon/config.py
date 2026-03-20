@@ -142,3 +142,23 @@ ZABER_PORT = None
 
 # Zaber stage velocity in degrees per second.
 ZABER_VELOCITY = 5.0
+
+# ---------------------------------------------------------------------------
+# Local machine overrides (never committed to git)
+# ---------------------------------------------------------------------------
+# If a local_settings.py file exists in the project root, its values override
+# the defaults above. Use this for machine-specific paths (CTI file, COM port)
+# without ever touching this file or risking accidental commits.
+#
+# To create your local settings:
+#   Windows:   copy local_settings.example.py local_settings.py
+#   Mac/Linux: cp local_settings.example.py local_settings.py
+#
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+import sys as _sys
+if _project_root not in _sys.path:
+    _sys.path.insert(0, _project_root)
+try:
+    from local_settings import *  # noqa: F401, F403
+except ImportError:
+    pass  # No local_settings.py — using defaults above

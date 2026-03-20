@@ -55,6 +55,9 @@ results/
 # --- Archives ---
 *.zip
 
+# --- Local machine-specific settings (never commit) ---
+local_settings.py
+
 # --- OS junk ---
 .DS_Store
 Thumbs.db
