@@ -75,3 +75,5 @@ dist/
 # Simulated test images and output
 notebooks/test_crystal/
 output/
+test_monitor.py
+logs/
