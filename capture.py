@@ -142,12 +142,21 @@ def find_cti_file(cti_path: str | None) -> str:
         return cti_path
 
     candidates = [
-        # Windows — Vimba X
+        # Windows — Vimba X (cti\ subfolder — USB and GigE)
+        r"C:\Program Files\Allied Vision\Vimba X\cti\VimbaUSBTL.cti",
+        r"C:\Program Files\Allied Vision\Vimba X\cti\VimbaGigETL.cti",
+        r"C:\Program Files\Allied Vision\Vimba X\cti\VimbaCameraSimulatorTL.cti",
+        # Windows — Vimba X (legacy api\bin\ path)
         r"C:\Program Files\Allied Vision\Vimba X\api\bin\VimbaC.cti",
         r"C:\Program Files\Allied Vision\VimbaX\api\bin\VimbaC.cti",
         # Windows — Vimba 6
         r"C:\Program Files\Allied Vision\Vimba_6\VimbaC\Bin\Win64\VimbaC.cti",
+        # macOS — Vimba X
+        "/Library/Frameworks/VimbaX.framework/Resources/cti/VimbaUSBTL.cti",
+        "/Library/Frameworks/VimbaX.framework/Resources/cti/VimbaGigETL.cti",
         # Linux
+        "/opt/VimbaX/cti/VimbaUSBTL.cti",
+        "/opt/VimbaX/cti/VimbaGigETL.cti",
         "/opt/VimbaX/api/lib/libVimbaC.so",
         "/opt/Vimba_6/VimbaC/DynamicLib/x86_64bit/libVimbaC.so",
     ]

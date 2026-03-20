@@ -43,11 +43,13 @@ PyOpenGL>=3.1.6
 pygame>=2.1.0
 
 # --- Camera acquisition (GenICam / Harvesters) ---
-# harvesters>=1.4.0
-# genicam>=1.0.0
+# Requires Allied Vision Vimba X SDK: https://www.alliedvision.com/en/products/vimba-sdk/
+harvesters>=1.4.0
+# genicam>=1.0.0  # Usually installed automatically with harvesters
 
 # --- Zaber motor control ---
 zaber-motion>=7.0.0
+pyserial>=3.5  # Required for Zaber stage serial port discovery
 
 # --- Jupyter notebooks ---
 jupyter>=1.0.0
