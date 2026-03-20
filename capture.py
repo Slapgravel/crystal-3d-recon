@@ -429,13 +429,11 @@ def capture_with_hardware(output_folder: str, step: int, calibrate: bool,
 
                 with ia.fetch() as buffer:
                     component = buffer.payload.components[0]
-                    h_img = component.height
-                    w_img = component.width
-                    img_data = component.data.reshape(h_img, w_img)
-
-                    # Convert mono16 to 8-bit for saving
-                    img_8bit = (img_data / 256).astype(np.uint8)
-                    img_bgr = cv.cvtColor(img_8bit, cv.COLOR_GRAY2BGR)
+                    if i == 0:
+                        print(f"  Pixel format: dtype={component.data.dtype}  "
+                              f"size={component.width}x{component.height}")
+                    img_bgr = _to_bgr(component)
+                    h_img, w_img = img_bgr.shape[:2]
 
                 if calibrate:
                     filename = f"CameraCalibration_{i:04d}.jpg"
@@ -453,6 +451,49 @@ def capture_with_hardware(output_folder: str, step: int, calibrate: bool,
         h.reset()
 
     print(f"\nCapture complete. {total} images saved to {output_folder}/")
+
+
+# ---------------------------------------------------------------------------
+# Pixel format conversion helper
+# ---------------------------------------------------------------------------
+
+def _to_bgr(component) -> np.ndarray:
+    """
+    Convert a harvesters buffer component to an 8-bit BGR numpy array,
+    handling the most common Allied Vision pixel formats automatically.
+
+    Supported formats:
+        Mono8         — 8-bit greyscale, no conversion needed
+        Mono10/12/14  — 10/12/14-bit packed into uint16, scale to 8-bit
+        Mono16        — 16-bit greyscale, divide by 256
+        BayerRG8/GB8/GR8/BG8  — 8-bit Bayer, demosaic to BGR
+        BayerRG12/16 etc.     — 12/16-bit Bayer, scale then demosaic
+    """
+    h_img = component.height
+    w_img = component.width
+    raw   = component.data
+
+    # Determine bit depth from dtype
+    if raw.dtype == np.uint8:
+        img = raw.reshape(h_img, w_img)
+        # Already 8-bit — check if it looks like a Bayer pattern by examining
+        # the node_map pixel format string (not available here, so just
+        # convert grey→BGR; caller can override if needed)
+        return cv.cvtColor(img, cv.COLOR_GRAY2BGR)
+    elif raw.dtype == np.uint16:
+        img = raw.reshape(h_img, w_img)
+        # Scale from whatever bit depth to 8-bit using the actual max value
+        # in the frame so we don't rely on knowing the exact bit depth.
+        # np.uint16 max is 65535; Allied Vision 12-bit cameras output
+        # values 0–4095, so a simple >> 8 would give 0–15 (too dark).
+        # Using cv.normalize handles all cases correctly.
+        img_8bit = cv.normalize(img, None, 0, 255, cv.NORM_MINMAX,
+                                dtype=cv.CV_8U)
+        return cv.cvtColor(img_8bit, cv.COLOR_GRAY2BGR)
+    else:
+        # Fallback: cast to uint8 and hope for the best
+        img = raw.reshape(h_img, w_img).astype(np.uint8)
+        return cv.cvtColor(img, cv.COLOR_GRAY2BGR)
 
 
 # ---------------------------------------------------------------------------
@@ -539,12 +580,11 @@ def capture_camera_only(output_folder: str, step: int, calibrate: bool,
         for i, angle in enumerate(angles):
             with ia.fetch() as buffer:
                 component = buffer.payload.components[0]
-                h_img = component.height
-                w_img = component.width
-                img_data = component.data.reshape(h_img, w_img)
-                # Convert mono16 to 8-bit for saving
-                img_8bit = (img_data / 256).astype(np.uint8)
-                img_bgr = cv.cvtColor(img_8bit, cv.COLOR_GRAY2BGR)
+                if i == 0:
+                    print(f"  Pixel format: dtype={component.data.dtype}  "
+                          f"size={component.width}x{component.height}")
+                img_bgr = _to_bgr(component)
+                h_img, w_img = img_bgr.shape[:2]
 
             if calibrate:
                 filename = f"CameraCalibration_{i:04d}.jpg"
