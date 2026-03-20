@@ -415,6 +415,15 @@ def capture_with_hardware(output_folder: str, step: int, calibrate: bool,
             ia.remote_device.node_map.Gain.value = config.CAMERA_GAIN_DB
             ia.start()
 
+            # Discard warm-up frames — the sensor produces 1-3 dark frames
+            # immediately after streaming starts while it stabilises.
+            warmup = getattr(config, 'CAMERA_WARMUP_FRAMES', 3)
+            if warmup > 0:
+                print(f"Discarding {warmup} warm-up frame(s)...")
+                for _ in range(warmup):
+                    with ia.fetch():
+                        pass
+
             angles = (list(range(0, 360, step))
                       if not calibrate else list(range(12)))
             total = len(angles)
@@ -569,6 +578,15 @@ def capture_camera_only(output_folder: str, step: int, calibrate: bool,
         ia.remote_device.node_map.ExposureTime.value = config.CAMERA_EXPOSURE_US
         ia.remote_device.node_map.Gain.value = config.CAMERA_GAIN_DB
         ia.start()
+
+        # Discard warm-up frames — the sensor produces 1-3 dark frames
+        # immediately after streaming starts while it stabilises.
+        warmup = getattr(config, 'CAMERA_WARMUP_FRAMES', 3)
+        if warmup > 0:
+            print(f"Discarding {warmup} warm-up frame(s)...")
+            for _ in range(warmup):
+                with ia.fetch():
+                    pass
 
         angles = (list(range(0, 360, step))
                   if not calibrate else list(range(12)))

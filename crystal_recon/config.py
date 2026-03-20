@@ -179,6 +179,11 @@ CAMERA_EXPOSURE_US = 5000.0
 # Camera gain in dB.
 CAMERA_GAIN_DB = 48.0
 
+# Number of frames to discard after ia.start() before saving any images.
+# Allied Vision cameras often produce 1-2 dark frames immediately after
+# streaming starts while the sensor stabilises. Set to 0 to disable.
+CAMERA_WARMUP_FRAMES = 3
+
 # Zaber stage serial port.
 # Set to None to auto-detect, or specify explicitly e.g. "COM3" or "/dev/ttyUSB0".
 ZABER_PORT = None
