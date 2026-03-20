@@ -117,6 +117,49 @@ CALIBRATION_FILE = os.path.join(DATA_DIR, "cal_images2",
 SCALE_CORRECTION = 0.88
 
 # ---------------------------------------------------------------------------
+# Growth monitoring schedule settings
+# ---------------------------------------------------------------------------
+
+# Phase 1: frequent captures during the first 24 hours (crystal nucleation / early growth)
+PHASE1_HOURS = 24
+
+# Phase 2: moderate captures for the next 6 days (steady growth)
+PHASE2_HOURS = 144  # 6 days
+
+# Capture intervals (minutes) for each phase.
+# These are the defaults; override with --phase1-mins / --phase2-mins / --phase3-mins.
+INTERVAL_PHASE1_MINS = 15   # Every 15 minutes for day 1
+INTERVAL_PHASE2_MINS = 30   # Every 30 minutes for days 2–7
+INTERVAL_PHASE3_MINS = 60   # Every 60 minutes after day 7
+
+# Minimum allowed interval (minutes) — adaptive tightening will not go below this.
+INTERVAL_MIN_MINS = 5
+
+# Adaptive scheduling thresholds.
+# If the measured growth rate exceeds ADAPTIVE_FAST_THRESHOLD_MM_HR, the
+# interval is halved (down to INTERVAL_MIN_MINS). If it falls below
+# ADAPTIVE_SLOW_THRESHOLD_MM_HR, the interval is doubled (up to INTERVAL_PHASE3_MINS).
+ADAPTIVE_FAST_THRESHOLD_MM_HR = 0.5   # mm/hr — tighten interval above this
+ADAPTIVE_SLOW_THRESHOLD_MM_HR = 0.01  # mm/hr — relax interval below this
+
+# ---------------------------------------------------------------------------
+# Facet detection settings
+# ---------------------------------------------------------------------------
+
+# Maximum number of crystal facets to detect per run.
+MAX_FACETS = 12
+
+# Minimum fraction of the remaining point cloud that must be explained by a
+# RANSAC plane for it to be accepted as a real facet.
+# Lower = more sensitive (may pick up noise); higher = only prominent facets.
+MIN_FACET_INLIER_FRACTION = 0.03
+
+# RANSAC inlier distance threshold in millimetres (or pixel units if --no-scale).
+# Points within this distance of the fitted plane are counted as inliers.
+# Increase if facets are being missed; decrease if spurious planes are detected.
+FACET_DISTANCE_THRESHOLD = 1.5
+
+# ---------------------------------------------------------------------------
 # Hardware settings (only used by capture.py on the lab machine)
 # ---------------------------------------------------------------------------
 

@@ -261,15 +261,30 @@ def _capture_images(run_id: str, image_folder: str, args, logger):
 
 
 def _reconstruct(run_id: str, image_folder: str, args, logger):
-    """Run the reconstruction step and return the point cloud as numpy array."""
+    """
+    Run the reconstruction step and return the point cloud as numpy array.
+
+    Uses the same iterative voxel-carving algorithm as reconstruct.py:
+      Pass 1 — build the initial block by extruding each silhouette into 3D
+               and carving the accumulated block with each new view.
+      Pass 2 — refine by carving the block again with all silhouettes.
+
+    Image scaling note:
+      - Real hardware: capture.py saves full-resolution images; we scale them
+        down by IMAGE_SCALE_FACTOR here before processing.
+      - Simulate mode: capture.py already saves images at the working resolution
+        (int(CAMERA_RESOLUTION * IMAGE_SCALE_FACTOR)), so we use scale_factor=1.0
+        to avoid double-scaling.
+    """
     import numpy as np
+    import cv2 as cv
     from crystal_recon import config
-    from crystal_recon.image_utils import validate_folder
+    from crystal_recon.image_utils import load_image, validate_folder
     from crystal_recon.segmentation import (
         load_sam_predictor, make_mask_sam, make_mask_opencv, get_boundary
     )
     from crystal_recon.reconstruction import (
-        contour_to_3d_with_depth, michelangelo, scale_coords
+        contour_to_3d_with_depth, michelangelo, rotate_3d, scale_coords
     )
 
     # Validate the image folder
@@ -290,48 +305,82 @@ def _reconstruct(run_id: str, image_folder: str, args, logger):
         else:
             logger.warning(f"SAM weights not found at {sam_path} — using OpenCV")
 
-    # Collect images
-    import cv2 as cv
-    images = sorted(Path(image_folder).glob("crystal_*.jpg"))
-    angle_step = config.CAPTURE_STEP_DEGREES
-    all_contours = []
-    angles = []
+    # Determine scale factor for loading images.
+    # In simulate mode, capture.py already saves images at the working resolution
+    # (IMAGE_SCALE_FACTOR applied), so we must NOT scale again.
+    # In real-hardware mode, images are full-resolution and need to be scaled.
+    img_scale = 1.0 if args.simulate else config.IMAGE_SCALE_FACTOR
 
-    for img_path in images:
-        try:
-            angle = int(img_path.stem.split("_")[1])
-        except (IndexError, ValueError):
-            continue
+    # Compute the working image dimensions (used to set z_min/z_max for the block)
+    w_full = config.CAMERA_RESOLUTION[0]
+    h_full = config.CAMERA_RESOLUTION[1]
+    w_work = int(w_full * config.IMAGE_SCALE_FACTOR)
+    h_work = int(h_full * config.IMAGE_SCALE_FACTOR)
+    z_min = -w_work
+    z_max = w_work
 
-        img = cv.imread(str(img_path))
+    # Build list of angles to process (every RECONSTRUCTION_ANGLE_STEP degrees)
+    angle_step = config.RECONSTRUCTION_ANGLE_STEP
+    angles = list(range(0, config.TOTAL_ROTATION_DEGREES, angle_step))
+
+    def get_contour(angle: int):
+        """Load, segment, and return the contour for one camera angle."""
+        img = load_image(angle, image_folder, scale_factor=img_scale)
         if img is None:
-            continue
-
-        # Scale image
-        h, w = img.shape[:2]
-        new_w = int(w * config.IMAGE_SCALE_FACTOR)
-        new_h = int(h * config.IMAGE_SCALE_FACTOR)
-        img_small = cv.resize(img, (new_w, new_h))
-
-        # Segment
+            return None
         try:
             if predictor is not None:
-                mask = make_mask_sam(img_small, predictor, config.SAM_BBOX)
+                mask = make_mask_sam(img, predictor, config.SAM_BBOX)
             else:
-                mask = make_mask_opencv(img_small)
-            contour = get_boundary(mask)
-            all_contours.append(contour)
-            angles.append(angle)
-        except Exception as e:
-            logger.warning(f"Skipping {img_path.name}: {e}")
+                mask = make_mask_opencv(img)
+            return get_boundary(mask)
+        except ValueError as e:
+            logger.warning(f"Skipping {angle}°: {e}")
+            return None
+
+    # --- Pass 1: Build the initial block from all silhouettes ---
+    logger.info(f"  Pass 1: building block from {len(angles)} silhouettes...")
+    block = None
+    for angle in angles:
+        contour = get_contour(angle)
+        if contour is None:
             continue
+        contour_arr = np.asarray(contour)
+        # Extrude contour into a 3D shell at this angle
+        shell = contour_to_3d_with_depth(contour_arr, z_min, z_max,
+                                         config.Z_AXIS_STEP_SIZE)
+        # Carve the existing block with this silhouette
+        if block is not None:
+            block = michelangelo(contour_arr, block)
+        # Accumulate the shell
+        block = shell if block is None else np.vstack((block, shell))
+        # Rotate block to the next angle
+        block = rotate_3d(block, -angle_step)
 
-    if not all_contours:
-        raise RuntimeError("No valid contours extracted from images")
+    if block is None or len(block) == 0:
+        raise RuntimeError(
+            "Reconstruction produced an empty block. "
+            "Check that images exist and segmentation is working."
+        )
 
-    # Build 3D block and carve
-    logger.info(f"  Carving {len(all_contours)} contours...")
-    block = michelangelo(all_contours, angles, config.Z_AXIS_STEP_SIZE)
+    # Rotate back to world orientation
+    total_rotated = -len(angles) * angle_step
+    block = rotate_3d(block, -total_rotated)
+
+    # --- Pass 2: Refine by carving again with all silhouettes ---
+    logger.info(f"  Pass 2: refining block ({len(block):,} points)...")
+    for angle in angles:
+        contour = get_contour(angle)
+        if contour is None:
+            continue
+        block = michelangelo(np.asarray(contour), block)
+        block = rotate_3d(block, -angle_step)
+    block = rotate_3d(block, -total_rotated)
+
+    # Sit the block on the Y=0 plane
+    block[:, 1] -= block[:, 1].min()
+
+    logger.info(f"  Block complete: {len(block):,} points")
 
     if len(block) == 0:
         raise RuntimeError("Reconstruction produced empty point cloud")

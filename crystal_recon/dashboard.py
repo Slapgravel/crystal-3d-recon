@@ -229,9 +229,10 @@ class Dashboard:
             return
 
         app = Flask(__name__, static_folder=None)
-        # Suppress Flask startup banner
+        # Suppress Flask startup banner (set log level, not WERKZEUG_RUN_MAIN)
         import os
-        os.environ["WERKZEUG_RUN_MAIN"] = "true"
+        import logging as _flask_log
+        _flask_log.getLogger("werkzeug").setLevel(_flask_log.ERROR)
 
         # Serve Chart.js from a local copy if available, else CDN fallback
         chart_js_path = Path(__file__).parent.parent / "static" / "chart.min.js"
