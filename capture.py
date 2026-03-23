@@ -159,7 +159,22 @@ def find_cti_file(cti_path: str | None) -> str:
     if cti_path and os.path.exists(cti_path):
         return cti_path
 
-    candidates = [
+    candidates = []
+
+    # ── 1. GENICAM_GENTL64_PATH / GENICAM_GENTL32_PATH ──────────────────────
+    # The Vimba X installer sets one of these on all platforms.  Each entry
+    # is a directory containing .cti files; we expand them here.
+    for env_var in ("GENICAM_GENTL64_PATH", "GENICAM_GENTL32_PATH"):
+        env_val = os.environ.get(env_var, "")
+        for directory in env_val.split(os.pathsep):
+            directory = directory.strip()
+            if directory and os.path.isdir(directory):
+                for name in ("VimbaUSBTL.cti", "VimbaGigETL.cti",
+                             "VimbaCameraSimulatorTL.cti"):
+                    candidates.append(os.path.join(directory, name))
+
+    # ── 2. Hard-coded well-known locations ───────────────────────────────────
+    candidates += [
         # Windows — Vimba X (cti\ subfolder — USB and GigE)
         r"C:\Program Files\Allied Vision\Vimba X\cti\VimbaUSBTL.cti",
         r"C:\Program Files\Allied Vision\Vimba X\cti\VimbaGigETL.cti",
@@ -169,10 +184,16 @@ def find_cti_file(cti_path: str | None) -> str:
         r"C:\Program Files\Allied Vision\VimbaX\api\bin\VimbaC.cti",
         # Windows — Vimba 6
         r"C:\Program Files\Allied Vision\Vimba_6\VimbaC\Bin\Win64\VimbaC.cti",
-        # macOS — Vimba X
+        # macOS — .pkg installer puts files under /Library/Allied Vision/
+        "/Library/Allied Vision/Vimba X/cti/VimbaUSBTL.cti",
+        "/Library/Allied Vision/Vimba X/cti/VimbaGigETL.cti",
+        # macOS — framework-style install
         "/Library/Frameworks/VimbaX.framework/Resources/cti/VimbaUSBTL.cti",
         "/Library/Frameworks/VimbaX.framework/Resources/cti/VimbaGigETL.cti",
-        # Linux
+        # macOS — user-level install in home directory
+        os.path.expanduser("~/VimbaX/cti/VimbaUSBTL.cti"),
+        os.path.expanduser("~/VimbaX/cti/VimbaGigETL.cti"),
+        # Linux / macOS — /opt install
         "/opt/VimbaX/cti/VimbaUSBTL.cti",
         "/opt/VimbaX/cti/VimbaGigETL.cti",
         "/opt/VimbaX/api/lib/libVimbaC.so",
@@ -184,10 +205,45 @@ def find_cti_file(cti_path: str | None) -> str:
             print(f"  Found CTI file: {path}")
             return path
 
+    # ── 3. macOS Spotlight search (mdfind) as last resort ───────────────────
+    import platform
+    if platform.system() == "Darwin":
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["mdfind", "-name", "VimbaUSBTL.cti"],
+                capture_output=True, text=True, timeout=5
+            )
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                if line and os.path.exists(line):
+                    print(f"  Found CTI file via Spotlight: {line}")
+                    return line
+            # Also try VimbaGigETL.cti
+            result = subprocess.run(
+                ["mdfind", "-name", "VimbaGigETL.cti"],
+                capture_output=True, text=True, timeout=5
+            )
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                if line and os.path.exists(line):
+                    print(f"  Found CTI file via Spotlight: {line}")
+                    return line
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+
     raise FileNotFoundError(
         "Could not find the Allied Vision GenICam CTI file.\n"
-        "Install the Vimba X SDK from: https://www.alliedvision.com/en/products/vimba-sdk/\n"
-        "Or specify the path with: --cti <path_to_VimbaC.cti>"
+        "\n"
+        "On macOS, try:\n"
+        "  mdfind -name VimbaUSBTL.cti\n"
+        "Then pass the result with: --cti /path/to/VimbaUSBTL.cti\n"
+        "\n"
+        "On Windows, install the Vimba X SDK from:\n"
+        "  https://www.alliedvision.com/en/products/vimba-sdk/\n"
+        "\n"
+        "Or set the path permanently in local_settings.py:\n"
+        "  CAMERA_CTI_PATH = '/path/to/VimbaUSBTL.cti'"
     )
 
 
