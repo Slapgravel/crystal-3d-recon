@@ -445,7 +445,12 @@ def run_analyse_only(experiment_name: str, db, tracker, logger):
 # ---------------------------------------------------------------------------
 
 def main():
-    args = parse_args()
+    # If no arguments were given, launch the interactive guided prompt
+    if len(sys.argv) == 1:
+        from crystal_recon.interactive import monitor_interactive
+        args = monitor_interactive()
+    else:
+        args = parse_args()
 
     # Apply any command-line interval overrides to config
     from crystal_recon import config

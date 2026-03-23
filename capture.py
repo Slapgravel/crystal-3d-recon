@@ -707,7 +707,12 @@ def simulate_calibration_image(index: int,
 # ---------------------------------------------------------------------------
 
 def main():
-    args = parse_args()
+    # If no arguments were given, launch the interactive guided prompt
+    if len(sys.argv) == 1:
+        from crystal_recon.interactive import capture_interactive
+        args = capture_interactive()
+    else:
+        args = parse_args()
 
     # Handle --list-cameras before requiring --output
     if args.list_cameras:
