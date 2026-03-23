@@ -120,7 +120,7 @@ def capture_interactive() -> "argparse.Namespace":
             output=None, simulate=False, calibrate=False,
             step=config.CAPTURE_STEP_DEGREES, camera=None,
             port=config.ZABER_PORT, cti=config.CAMERA_CTI_PATH,
-            list_cameras=True, no_stage=False, no_home=False,
+            list_cameras=True, no_stage=False,
             output_dir="notebooks",
         )
 
@@ -147,7 +147,6 @@ def capture_interactive() -> "argparse.Namespace":
     camera_index = None
     port         = config.ZABER_PORT
     cti_path     = config.CAMERA_CTI_PATH
-    no_home      = False
     output_dir   = "notebooks"
 
     if not simulate:
@@ -169,11 +168,6 @@ def capture_interactive() -> "argparse.Namespace":
                     default=config.ZABER_PORT or "",
                 )
                 port = port_raw or config.ZABER_PORT
-
-                no_home = _ask_yn(
-                    "Skip homing the stage? (only if already at home position)",
-                    default=False,
-                )
 
             cti_raw = _ask(
                 "Path to GenICam CTI file (blank to auto-find)",
@@ -215,7 +209,6 @@ def capture_interactive() -> "argparse.Namespace":
         cti=cti_path,
         list_cameras=False,
         no_stage=no_stage,
-        no_home=no_home,
         output_dir=output_dir,
     )
 

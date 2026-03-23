@@ -122,12 +122,8 @@ Examples:
              "angle step. Use this to verify the camera before the stage is "
              "connected."
     )
-    parser.add_argument(
-        "--no-home",
-        action="store_true",
-        help="Skip homing the Zaber stage before capture. "
-             "Use only if the stage is already at the home position."
-    )
+    # --no-home is intentionally removed: the stage is never homed.
+    # Capture always uses incremental relative moves from the current position.
     parser.add_argument(
         "--output-dir",
         default=config.DATA_DIR,
@@ -377,21 +373,22 @@ def list_hardware(args):
 
 def capture_with_hardware(output_folder: str, step: int, calibrate: bool,
                           camera_index: int | None, port: str | None,
-                          cti_path: str | None, home: bool):
+                          cti_path: str | None):
     """
     Capture images using the real Zaber stage and Allied Vision camera.
 
-    Auto-discovers hardware if camera_index or port are not specified.
-    Prompts for confirmation before homing the stage.
+    The stage is assumed to be already rotating continuously as part of a
+    larger system.  No homing is performed.  The stage is moved by
+    incremental relative steps (``step`` degrees per image) from whatever
+    position it is currently at.
 
     Args:
         output_folder:  Path to save images into.
-        step:           Rotation step in degrees.
+        step:           Rotation step in degrees between images.
         calibrate:      If True, capture calibration images instead.
         camera_index:   Camera index (from --list-cameras), or None to auto-select.
         port:           Zaber serial port, or None to auto-discover.
         cti_path:       Path to CTI file, or None to auto-find.
-        home:           If True, home the stage before capture.
     """
     try:
         from harvesters.core import Harvester
@@ -449,18 +446,6 @@ def capture_with_hardware(output_folder: str, step: int, calibrate: bool,
         devices = conn.detect_devices()
         stage = devices[0].get_axis(1)
 
-        if home:
-            confirm = input(
-                "\nAbout to HOME the rotation stage. "
-                "Make sure the crystal is clear. Continue? [y/N]: "
-            ).strip().lower()
-            if confirm != "y":
-                print("Homing cancelled. Exiting.")
-                sys.exit(0)
-            print("Homing stage...")
-            stage.home()
-            print("Stage homed.")
-
         # --- Connect to camera ---
         h = Harvester()
         h.add_file(cti)
@@ -489,7 +474,7 @@ def capture_with_hardware(output_folder: str, step: int, calibrate: bool,
 
             for i, angle in enumerate(angles):
                 if not calibrate:
-                    stage.move_absolute(angle, Units.ANGLE_DEGREES)
+                    stage.move_relative(step, Units.ANGLE_DEGREES)
                     time.sleep(0.3)  # Allow stage to settle
 
                 with ia.fetch() as buffer:
@@ -503,7 +488,7 @@ def capture_with_hardware(output_folder: str, step: int, calibrate: bool,
                 if calibrate:
                     filename = f"CameraCalibration_{i:04d}.jpg"
                 else:
-                    filename = f"crystal_{angle:04d}.jpg"
+                    filename = f"crystal_{i * step:04d}.jpg"
 
                 path = os.path.join(output_folder, filename)
                 cv.imwrite(path, img_bgr)
@@ -837,7 +822,6 @@ def main():
                 camera_index=args.camera,
                 port=args.port,
                 cti_path=args.cti,
-                home=not args.no_home,
             )
         except (ImportError, RuntimeError, FileNotFoundError) as e:
             print(f"\nERROR: {e}")
