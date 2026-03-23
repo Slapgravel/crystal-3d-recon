@@ -103,8 +103,10 @@ def parse_args():
     parser.add_argument("--no-scale", action="store_true",
                         help="Skip scale calibration")
     parser.add_argument("--no-dashboard", action="store_true",
-                        help="Disable the Flask web dashboard entirely "
-                             "(use the desktop viewer instead)")
+                        help="Disable the web dashboard entirely "
+                             "(use the desktop viewer instead).")
+    parser.add_argument("--no-viewer", action="store_true",
+                        help="Do not launch the desktop viewer GUI automatically.")
     parser.add_argument("--dashboard-port", type=int, default=5050,
                         help="Port for the live dashboard (default: 5050)")
     parser.add_argument("--phase1-mins", type=int, default=None,
@@ -492,11 +494,38 @@ def main():
         dashboard = Dashboard(db, args.name, port=args.dashboard_port)
         dashboard.start(start_time=time.time())
         logger.info(f"Dashboard: http://localhost:{args.dashboard_port}")
+
+    # Launch desktop viewer as a detached subprocess so it appears immediately
+    # and auto-refreshes as the .db file is updated.  Skipped when:
+    #   --no-viewer is passed explicitly, OR
+    #   the web dashboard is already running (both would be redundant)
+    viewer_proc = None
+    if not getattr(args, 'no_viewer', False) and args.no_dashboard:
+        _viewer_db = str(db_path)
+        try:
+            import subprocess
+            viewer_proc = subprocess.Popen(
+                [sys.executable, "-m", "crystal_recon.viewer", _viewer_db],
+                # Detach from our console so it doesn't block or print noise
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            logger.info(
+                f"Desktop viewer launched (PID {viewer_proc.pid}). "
+                f"It will auto-refresh every 60 s as new data arrives."
+            )
+        except Exception as exc:
+            logger.warning(
+                f"Could not launch desktop viewer automatically: {exc}\n"
+                f"Open it manually with: "
+                f"python -m crystal_recon.viewer output/{args.name}.db"
+            )
+    elif not args.no_dashboard:
+        pass  # dashboard is running — viewer not needed
     else:
         logger.info(
-            "Dashboard disabled (--no-dashboard). "
-            f"Open the desktop viewer with: "
-            f"python -m crystal_recon.viewer output/{args.name}.db"
+            f"Viewer suppressed (--no-viewer). "
+            f"Open manually: python -m crystal_recon.viewer output/{args.name}.db"
         )
 
     # Analyse-only mode
